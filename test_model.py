@@ -11,7 +11,7 @@ root = 'data'
 
 test_data = []
 df = pd.DataFrame()
-model = tf.keras.models.load_model("CNN.model")
+model = tf.keras.models.load_model("CNN.model") #, custom_objects={'custom_activation':Activation(custom_activation)})
 for category in CATEGORIES:
     path = os.path.join(root, category)
     for img in os.listdir(path):

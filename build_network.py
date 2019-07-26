@@ -4,7 +4,9 @@ from tensorflow.keras.layers import BatchNormalization, Dense, Dropout, Activati
 import pickle
 from keras.models import model_from_json
 from keras.models import load_model
-from keras import optimizers
+from keras import optimizers, regularizers
+from keras import backend as K
+from keras.utils.generic_utils import get_custom_objects
 import matplotlib.pyplot as plt
 import cv2
 
@@ -17,10 +19,10 @@ IMG_SIZE = 256 #pixels
 features = pickle.load(open("features.pickle","rb"))
 labels = pickle.load(open("labels.pickle","rb"))
 
-test_img=features[0]
-cv2.imshow(str(labels[0]),test_img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+# test_img=features[0]
+# cv2.imshow(str(labels[0]),test_img)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
 # normalize data
 features = features/255.0
@@ -71,24 +73,30 @@ model.add(MaxPooling2D(pool_size=(2,2), strides =2))
 model.add(Flatten())
 
 # 10. Dropout Layer: In Mathematica Dropout[] has a rate of dropping 50% of elements and multiply rest by 2
-# !!!!!!! Currently trying to figure out how to do the multiply by 2 but moving on for now !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# This custom activation function is supposed to replicate the idea of multiplying remaining elements by 2.
+# It uses relu, but sets the slope for elements <0 to still be 1 (so essentially it's a linear function)  then multiplies everything by 2
+# I tried doing K.linear(x) but for some reason it didn't work
+# def custom_activation(x):
+# 	return (K.relu(x, alpha = 1)*2)
+# get_custom_objects().update({'custom_activation':Activation(custom_activation)})
 model.add(Dropout(0.5))
+# model.add(Activation(custom_activation))
 
-model.add(Dense(500))
+model.add(Dense(500, kernel_regularizer=regularizers.l2(0.01))) #, activation ="relu" , kernel_regularizer=regularizers.l2(0.01), activity_regularizer=regularizers.l2(0.01), bias_regularizer=regularizers.l2(0.01)))
 model.add(Activation("relu"))
 
 # The output layer with 2 neurons, for 2 classes
-model.add(Dense(2))
+model.add(Dense(2)) #, activation = "softmax"))
 model.add(Activation("softmax"))
 
 # Compiling the model using some basic parameters
-opt = tf.keras.optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
+opt = tf.keras.optimizers.Adam(lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0.0, amsgrad=False)
 model.compile(loss="sparse_categorical_crossentropy", optimizer=opt, metrics=["accuracy"])
 
 print("Model created")
 # Training the model, with 10 iterations
 # validation_split corresponds to the percentage of images used for the validation phase compared to all the images
-history = model.fit(features, labels, batch_size=32, epochs=10, validation_split=0.1)
+history = model.fit(features, labels, batch_size=32, epochs=10, validation_split=0.2)
 
 # Saving the model
 model_json = model.to_json()
